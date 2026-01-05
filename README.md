@@ -34,7 +34,14 @@ ZimbaBeats is a purpose-built Android application designed to provide children w
 
 The application is built using modern Android development practices, including Jetpack Compose for the user interface and Material Design 3 for visual consistency. All streaming functionality operates without advertisements or tracking mechanisms.
 
----
+## Screenshots    
+ <p align="center">          
+ <img src="?raw=true" width="200" />          
+  <img src="?raw=true" width="200" />          
+   <img src="?raw=true" width="200" />          
+   <img src="?raw=true" width="200" /> </p> <p align="center">          
+
+</p>
 
 ## Issue Reporting
 
