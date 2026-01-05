@@ -483,13 +483,6 @@ class SettingsViewModel(
         }
     }
 
-    fun unlinkFromFamily() {
-        viewModelScope.launch {
-            cloudPairingClient.unpair()
-            _uiState.value = _uiState.value.copy(isFamilyLinked = false)
-            Toast.makeText(application, "Unlinked from family", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     fun clearFamilyLinkError() {
         _uiState.value = _uiState.value.copy(familyLinkingError = null)

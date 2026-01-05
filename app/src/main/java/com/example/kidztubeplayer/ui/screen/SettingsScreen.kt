@@ -31,6 +31,7 @@ import com.zimbabeats.data.AccessibilityMode
 import com.zimbabeats.data.DownloadNetworkPreference
 import com.zimbabeats.data.ThemeMode
 import com.zimbabeats.ui.accessibility.ContentDescriptions
+import com.zimbabeats.ui.util.WindowSizeUtil
 import com.zimbabeats.ui.viewmodel.SettingsViewModel
 import com.zimbabeats.update.UpdateResult
 import org.koin.androidx.compose.koinViewModel
@@ -60,9 +61,8 @@ fun SettingsScreen(
     var showPlaybackBufferLimitDialog by remember { mutableStateOf(false) }
     var showSavedMediaLimitDialog by remember { mutableStateOf(false) }
     var showImageCacheLimitDialog by remember { mutableStateOf(false) }
-    // Family linking dialogs
+    // Family linking dialog
     var showFamilyCodeDialog by remember { mutableStateOf(false) }
-    var showUnlinkFamilyDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -76,13 +76,25 @@ fun SettingsScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        val maxContentWidth = WindowSizeUtil.getMaxContentWidth()
+        val horizontalPadding = WindowSizeUtil.getHorizontalPadding()
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentAlignment = Alignment.TopCenter
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .then(
+                        if (maxContentWidth != androidx.compose.ui.unit.Dp.Unspecified)
+                            Modifier.widthIn(max = maxContentWidth)
+                        else Modifier.fillMaxWidth()
+                    ),
+                contentPadding = PaddingValues(horizontalPadding),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
             // Video Settings Section
             item {
                 Text(
@@ -210,11 +222,12 @@ fun SettingsScreen(
 
             item {
                 if (uiState.isFamilyLinked) {
+                    // Show status only - child cannot unlink (must be done from parent app)
                     SettingsItem(
                         icon = Icons.Default.FamilyRestroom,
                         title = "Connected to Family",
-                        subtitle = "Parental controls sync from cloud",
-                        onClick = { showUnlinkFamilyDialog = true }
+                        subtitle = "Managed by parent via ZimbaBeats Family app",
+                        onClick = { } // No action - status display only
                     )
                 } else {
                     SettingsItem(
@@ -467,6 +480,7 @@ fun SettingsScreen(
                         .padding(vertical = 16.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+            }
             }
         }
     }
@@ -821,29 +835,6 @@ fun SettingsScreen(
             },
             onSuccess = {
                 showFamilyCodeDialog = false
-            }
-        )
-    }
-
-    // Unlink Family confirmation dialog
-    if (showUnlinkFamilyDialog) {
-        AlertDialog(
-            onDismissRequest = { showUnlinkFamilyDialog = false },
-            icon = { Icon(Icons.Default.LinkOff, contentDescription = null) },
-            title = { Text("Unlink from Family") },
-            text = { Text("Are you sure you want to unlink this device from your family? Parental controls will stop syncing.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.unlinkFromFamily()
-                    showUnlinkFamilyDialog = false
-                }) {
-                    Text("Unlink")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUnlinkFamilyDialog = false }) {
-                    Text("Cancel")
-                }
             }
         )
     }

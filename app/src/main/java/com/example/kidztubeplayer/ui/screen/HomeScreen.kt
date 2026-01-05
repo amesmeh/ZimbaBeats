@@ -51,6 +51,7 @@ import com.zimbabeats.ui.viewmodel.HomeViewModel
 import com.zimbabeats.ui.viewmodel.HomeUiState
 import com.zimbabeats.ui.viewmodel.PopularChannel
 import com.zimbabeats.ui.viewmodel.music.MusicHomeViewModel
+import com.zimbabeats.ui.util.WindowSizeUtil
 import org.koin.androidx.compose.koinViewModel
 
 enum class ContentMode {
@@ -297,10 +298,11 @@ private fun VideoHomeContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val iconSize = WindowSizeUtil.getLargeIconSize()
             Icon(
                 Icons.Default.VideoLibrary,
                 contentDescription = null,
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(iconSize),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -476,11 +478,12 @@ private fun QuickPickItem(
     video: Video,
     onClick: () -> Unit
 ) {
+    val quickPickWidth = WindowSizeUtil.getQuickPickWidth()
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = Modifier.width(200.dp)
+        modifier = Modifier.width(quickPickWidth)
     ) {
         Row(
             modifier = Modifier.padding(4.dp),
@@ -716,10 +719,11 @@ private fun MusicHomeContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val iconSize = WindowSizeUtil.getLargeIconSize()
             Icon(
                 Icons.Default.MusicNote,
                 contentDescription = null,
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(iconSize),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -895,9 +899,10 @@ private fun TrackCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val cardWidth = WindowSizeUtil.getCardWidth()
     Surface(
         onClick = onClick,
-        modifier = modifier.width(140.dp),
+        modifier = modifier.width(cardWidth),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface
     ) {
@@ -940,9 +945,10 @@ private fun AlbumCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val cardWidth = WindowSizeUtil.getCardWidth()
     Surface(
         onClick = onClick,
-        modifier = modifier.width(140.dp),
+        modifier = modifier.width(cardWidth),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface
     ) {
@@ -1021,9 +1027,10 @@ private fun PlaylistCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val cardWidth = WindowSizeUtil.getCardWidth()
     Surface(
         onClick = onClick,
-        modifier = modifier.width(140.dp),
+        modifier = modifier.width(cardWidth),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface
     ) {

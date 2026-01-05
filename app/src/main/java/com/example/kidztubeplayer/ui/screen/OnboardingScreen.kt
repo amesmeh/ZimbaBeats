@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zimbabeats.ui.util.WindowSizeUtil
 import com.zimbabeats.ui.viewmodel.OnboardingViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -99,19 +100,31 @@ fun OnboardingScreen(
 
 @Composable
 private fun WelcomeStep(onGetStarted: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    val maxContentWidth = WindowSizeUtil.getMaxContentWidth()
+    val horizontalPadding = WindowSizeUtil.getHorizontalPadding()
+    val largeIconSize = WindowSizeUtil.getLargeIconSize()
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            Icons.Default.MusicNote,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        Column(
+            modifier = Modifier
+                .then(
+                    if (maxContentWidth != androidx.compose.ui.unit.Dp.Unspecified)
+                        Modifier.widthIn(max = maxContentWidth)
+                    else Modifier.fillMaxWidth()
+                )
+                .padding(horizontalPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.MusicNote,
+                contentDescription = null,
+                modifier = Modifier.size(largeIconSize),
+                tint = MaterialTheme.colorScheme.primary
+            )
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -144,6 +157,7 @@ private fun WelcomeStep(onGetStarted: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
         }
+        }
     }
 }
 
@@ -159,20 +173,31 @@ private fun FamilyCodeStep(
 ) {
     var familyCode by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+    val maxContentWidth = WindowSizeUtil.getMaxContentWidth()
+    val horizontalPadding = WindowSizeUtil.getHorizontalPadding()
+    val largeIconSize = WindowSizeUtil.getLargeIconSize()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            if (isLinked) Icons.Default.FamilyRestroom else Icons.Default.Link,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = if (isLinked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-        )
+        Column(
+            modifier = Modifier
+                .then(
+                    if (maxContentWidth != androidx.compose.ui.unit.Dp.Unspecified)
+                        Modifier.widthIn(max = maxContentWidth)
+                    else Modifier.fillMaxWidth()
+                )
+                .padding(horizontalPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                if (isLinked) Icons.Default.FamilyRestroom else Icons.Default.Link,
+                contentDescription = null,
+                modifier = Modifier.size(largeIconSize),
+                tint = if (isLinked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+            )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -286,6 +311,7 @@ private fun FamilyCodeStep(
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
             }
+        }
         }
     }
 }

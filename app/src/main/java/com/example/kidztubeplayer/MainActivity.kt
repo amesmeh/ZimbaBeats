@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,6 +39,7 @@ import com.zimbabeats.ui.screen.BlockScreen
 import com.zimbabeats.ui.screen.OnboardingScreen
 import com.zimbabeats.ui.screen.ScreenTimeWarningDialog
 import com.zimbabeats.ui.theme.ZimbaBeatsTheme
+import com.zimbabeats.ui.util.LocalWindowSizeClass
 import com.zimbabeats.family.ipc.PlaybackVerdict
 import kotlinx.coroutines.delay
 import org.koin.android.ext.android.inject
@@ -46,10 +48,14 @@ class MainActivity : ComponentActivity() {
     private val appPreferences: AppPreferences by inject()
     private val parentalControlBridge: ParentalControlBridge by inject()
 
+    @androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            // Calculate WindowSizeClass for adaptive layouts
+            val windowSizeClass = androidx.compose.material3.windowsizeclass.calculateWindowSizeClass(this)
+
             // Observe theme mode and accent color from preferences
             val themeMode by appPreferences.themeModeFlow.collectAsState()
             val accentColor by appPreferences.accentColorFlow.collectAsState()
@@ -138,9 +144,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            ZimbaBeatsTheme(darkTheme = darkTheme, accentColor = accentColor) {
-                // Show onboarding if first launch is not complete
-                if (!isFirstLaunchComplete) {
+            // Provide WindowSizeClass to all composables
+            CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass) {
+                ZimbaBeatsTheme(darkTheme = darkTheme, accentColor = accentColor) {
+                    // Show onboarding if first launch is not complete
+                    if (!isFirstLaunchComplete) {
                     OnboardingScreen(
                         onComplete = {
                             // AppPreferences will update firstLaunchComplete to true
@@ -235,6 +243,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 } // end else (main app content)
+                }
             }
         }
     }
