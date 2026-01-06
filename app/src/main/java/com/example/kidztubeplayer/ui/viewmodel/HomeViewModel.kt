@@ -394,15 +394,32 @@ class HomeViewModel(
 
     /**
      * Convert cloud age rating string to AgeRating enum
+     * Supports BOTH naming conventions:
+     * - Child app format: FIVE_PLUS, TEN_PLUS, etc.
+     * - Family app format: UNDER_5, UNDER_10, etc.
      */
     private fun parseAgeRating(ageRatingString: String?): AgeRating {
-        return when (ageRatingString) {
-            "FIVE_PLUS" -> AgeRating.FIVE_PLUS
-            "TEN_PLUS" -> AgeRating.TEN_PLUS
-            "TWELVE_PLUS" -> AgeRating.TWELVE_PLUS
-            "FOURTEEN_PLUS" -> AgeRating.FOURTEEN_PLUS
-            "SIXTEEN_PLUS" -> AgeRating.SIXTEEN_PLUS
-            else -> AgeRating.ALL
+        return when (ageRatingString?.uppercase()) {
+            // Child app format
+            "FIVE_PLUS", "5+", "5_PLUS" -> AgeRating.FIVE_PLUS
+            "TEN_PLUS", "10+", "10_PLUS" -> AgeRating.TEN_PLUS
+            "TWELVE_PLUS", "12+", "12_PLUS" -> AgeRating.TWELVE_PLUS
+            "FOURTEEN_PLUS", "14+", "14_PLUS" -> AgeRating.FOURTEEN_PLUS
+            "SIXTEEN_PLUS", "16+", "16_PLUS" -> AgeRating.SIXTEEN_PLUS
+            // Family app format (AgeGroup naming)
+            "UNDER_5", "UNDER5" -> AgeRating.FIVE_PLUS
+            "UNDER_8", "UNDER8" -> AgeRating.FIVE_PLUS // Map to closest
+            "UNDER_10", "UNDER10" -> AgeRating.TEN_PLUS
+            "UNDER_12", "UNDER12" -> AgeRating.TWELVE_PLUS
+            "UNDER_13", "UNDER13" -> AgeRating.TWELVE_PLUS // Map to closest
+            "UNDER_14", "UNDER14" -> AgeRating.FOURTEEN_PLUS
+            "UNDER_16", "UNDER16" -> AgeRating.SIXTEEN_PLUS
+            // Default
+            "ALL", null, "" -> AgeRating.ALL
+            else -> {
+                Log.w(TAG, "Unknown age rating string: $ageRatingString, defaulting to ALL")
+                AgeRating.ALL
+            }
         }
     }
 

@@ -85,12 +85,42 @@ class CloudContentFilter(
         settingsListener = null
     }
 
+    /**
+     * Normalize age rating string from Family app format to standard format
+     * Handles both UNDER_X (Family app) and X_PLUS (Child app) formats
+     */
+    private fun normalizeAgeRating(rawRating: String): String {
+        return when (rawRating.uppercase()) {
+            // Already in standard format
+            "ALL", "FIVE_PLUS", "TEN_PLUS", "TWELVE_PLUS", "FOURTEEN_PLUS", "SIXTEEN_PLUS" -> rawRating.uppercase()
+            // Family app format - convert to standard
+            "UNDER_5", "UNDER5" -> "FIVE_PLUS"
+            "UNDER_8", "UNDER8" -> "FIVE_PLUS" // Map to closest
+            "UNDER_10", "UNDER10" -> "TEN_PLUS"
+            "UNDER_12", "UNDER12" -> "TWELVE_PLUS"
+            "UNDER_13", "UNDER13" -> "TWELVE_PLUS" // Map to closest
+            "UNDER_14", "UNDER14" -> "FOURTEEN_PLUS"
+            "UNDER_16", "UNDER16" -> "SIXTEEN_PLUS"
+            // Numeric formats
+            "5+", "5_PLUS" -> "FIVE_PLUS"
+            "10+", "10_PLUS" -> "TEN_PLUS"
+            "12+", "12_PLUS" -> "TWELVE_PLUS"
+            "14+", "14_PLUS" -> "FOURTEEN_PLUS"
+            "16+", "16_PLUS" -> "SIXTEEN_PLUS"
+            else -> {
+                Log.w(TAG, "Unknown age rating format: $rawRating, defaulting to ALL")
+                "ALL"
+            }
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun parseFilterSettings(data: Map<String, Any?>): CloudFilterSettings {
-        val ageRating = data["ageRating"] as? String ?: "ALL"
+        val rawAgeRating = data["ageRating"] as? String ?: "ALL"
+        val ageRating = normalizeAgeRating(rawAgeRating)
         val ageBasedEnabled = data["ageBasedFilteringEnabled"] as? Boolean ?: false
 
-        Log.d(TAG, "Parsing filter settings - ageRating: $ageRating, ageBasedEnabled: $ageBasedEnabled")
+        Log.d(TAG, "Parsing filter settings - rawAgeRating: $rawAgeRating, normalized: $ageRating, ageBasedEnabled: $ageBasedEnabled")
 
         return CloudFilterSettings(
             blockedKeywords = (data["blockedKeywords"] as? List<String>) ?: emptyList(),
