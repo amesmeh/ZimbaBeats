@@ -84,7 +84,13 @@ Timely reporting of issues is essential for maintaining application stability an
 | Offline Storage | Download capability for offline viewing |
 | Content Library | Personal playlist and favorites management |
 | Search | Filtered search functionality with safe-search enforcement |
-| Music Integration | Full YouTube Music catalog access with dedicated player |
+| Music Integration | Full YouTube Music catalog access with dedicated player - Thanks to Youtube |
+
+### Global Content Filtering
+
+| Feature | Description |
+|---------|-------------|
+|  Global Filtering |  Dangerous or harmful content is blocked platform-wide by the ZimbaBeats team. No app update required - blocks apply instantly. |
 
 ### Parental Control Features
 
@@ -94,6 +100,7 @@ Timely reporting of issues is essential for maintaining application stability an
 | Screen Time Management | Configurable daily usage limits with automatic enforcement |
 | Bedtime Scheduling | Time-based access restrictions |
 | Age-Based Filtering | Content restriction based on age rating classifications |
+
 
 ### Premium Content Filtering
 
