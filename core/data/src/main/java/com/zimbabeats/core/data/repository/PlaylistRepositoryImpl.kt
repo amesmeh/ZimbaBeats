@@ -190,4 +190,57 @@ class PlaylistRepositoryImpl(
 
     override suspend fun isTrackInPlaylist(playlistId: Long, trackId: String): Boolean =
         playlistTrackDao.isTrackInPlaylist(playlistId, trackId)
+
+    // ==================== Sharing Methods ====================
+
+    override fun getSharedPlaylists(): Flow<List<Playlist>> =
+        playlistDao.getSharedPlaylists().map { playlists ->
+            playlists.map { it.toDomain() }
+        }
+
+    override fun getImportedPlaylists(): Flow<List<Playlist>> =
+        playlistDao.getImportedPlaylists().map { playlists ->
+            playlists.map { it.toDomain() }
+        }
+
+    override suspend fun updateShareCode(playlistId: Long, shareCode: String?, sharedAt: Long?): Resource<Unit> = try {
+        playlistDao.updateShareCode(playlistId, shareCode, sharedAt)
+        Resource.success(Unit)
+    } catch (e: Exception) {
+        Resource.error("Failed to update share code: ${e.message}", e)
+    }
+
+    override suspend fun createImportedPlaylist(
+        name: String,
+        description: String?,
+        color: PlaylistColor,
+        importedFrom: String
+    ): Resource<Long> = try {
+        val now = System.currentTimeMillis()
+        val playlist = PlaylistEntity(
+            name = name,
+            description = description,
+            thumbnailUrl = null,
+            createdAt = now,
+            updatedAt = now,
+            videoCount = 0,
+            trackCount = 0,
+            isFavorite = false,
+            color = color.hex,
+            isImported = true,
+            importedFrom = importedFrom,
+            importedAt = now
+        )
+        val id = playlistDao.insertPlaylist(playlist)
+        Resource.success(id)
+    } catch (e: Exception) {
+        Resource.error("Failed to create imported playlist: ${e.message}", e)
+    }
+
+    override suspend fun markAsImported(playlistId: Long, importedFrom: String): Resource<Unit> = try {
+        playlistDao.markAsImported(playlistId, importedFrom)
+        Resource.success(Unit)
+    } catch (e: Exception) {
+        Resource.error("Failed to mark playlist as imported: ${e.message}", e)
+    }
 }

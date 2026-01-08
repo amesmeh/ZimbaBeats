@@ -8,6 +8,7 @@ import com.zimbabeats.ui.viewmodel.OnboardingViewModel
 import com.zimbabeats.ui.viewmodel.ParentalControlViewModel
 import com.zimbabeats.ui.viewmodel.ParentalDashboardViewModel
 import com.zimbabeats.ui.viewmodel.PlaylistDetailViewModel
+import com.zimbabeats.ui.viewmodel.PlaylistSharingViewModel
 import com.zimbabeats.ui.viewmodel.PlaylistViewModel
 import com.zimbabeats.ui.viewmodel.SearchViewModel
 import com.zimbabeats.ui.viewmodel.SettingsViewModel
@@ -42,6 +43,9 @@ val viewModelModule = module {
     viewModel { (playlistId: Long) ->
         PlaylistDetailViewModel(playlistId, get())
     }
+
+    // Playlist Sharing (share/import playlists between kids)
+    viewModel { PlaylistSharingViewModel(get(), get(), get(), get()) }
 
     // Video Player screen (uses ParentalControlBridge for permissions)
     viewModel { (videoId: String) ->

@@ -26,6 +26,8 @@ import com.zimbabeats.core.domain.model.music.Track
 import com.zimbabeats.ui.components.EmptyState
 import com.zimbabeats.ui.components.PlaylistDetailShimmer
 import com.zimbabeats.ui.viewmodel.PlaylistDetailViewModel
+import com.zimbabeats.ui.viewmodel.PlaylistSharingViewModel
+import com.zimbabeats.ui.viewmodel.ShareState
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -36,11 +38,15 @@ fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
     onVideoClick: (String) -> Unit,
     onTrackClick: (String) -> Unit = {},
-    viewModel: PlaylistDetailViewModel = koinViewModel { parametersOf(playlistId) }
+    viewModel: PlaylistDetailViewModel = koinViewModel { parametersOf(playlistId) },
+    sharingViewModel: PlaylistSharingViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val shareState by sharingViewModel.shareState.collectAsState()
+    val isSharingEnabled by sharingViewModel.isSharingEnabled.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -57,7 +63,16 @@ fun PlaylistDetailScreen(
                     }
                 },
                 actions = {
-                    if (uiState.videos.isNotEmpty()) {
+                    // Share button (only if linked to family)
+                    if (isSharingEnabled && uiState.playlist != null && !uiState.playlist!!.isImported) {
+                        IconButton(onClick = { showShareDialog = true }) {
+                            Icon(
+                                if (uiState.playlist?.isShared == true) Icons.Default.Link else Icons.Default.Share,
+                                "Share Playlist"
+                            )
+                        }
+                    }
+                    if (uiState.videos.isNotEmpty() || uiState.tracks.isNotEmpty()) {
                         IconButton(onClick = { showClearDialog = true }) {
                             Icon(Icons.Default.ClearAll, "Clear Playlist")
                         }
@@ -149,7 +164,7 @@ fun PlaylistDetailScreen(
             onDismissRequest = { showClearDialog = false },
             icon = { Icon(Icons.Default.ClearAll, contentDescription = null) },
             title = { Text("Clear Playlist") },
-            text = { Text("Remove all ${uiState.videos.size} videos from this playlist?") },
+            text = { Text("Remove all ${uiState.videos.size + uiState.tracks.size} items from this playlist?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -164,6 +179,34 @@ fun PlaylistDetailScreen(
                 TextButton(onClick = { showClearDialog = false }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    // Share playlist dialog
+    if (showShareDialog && uiState.playlist != null) {
+        SharePlaylistDialog(
+            playlist = uiState.playlist!!,
+            shareCode = uiState.playlist?.shareCode ?: when (shareState) {
+                is ShareState.Success -> (shareState as ShareState.Success).shareCode
+                else -> null
+            },
+            isLoading = shareState is ShareState.Loading,
+            isGenerating = shareState is ShareState.Generating,
+            onGenerateCode = {
+                sharingViewModel.generateShareCode(
+                    playlist = uiState.playlist!!,
+                    videos = uiState.videos,
+                    tracks = uiState.tracks
+                )
+            },
+            onRevokeCode = {
+                sharingViewModel.revokeShareCode(uiState.playlist!!)
+                showShareDialog = false
+            },
+            onDismiss = {
+                showShareDialog = false
+                sharingViewModel.resetShareState()
             }
         )
     }

@@ -21,7 +21,13 @@ fun PlaylistEntity.toDomain(
     isFavorite = isFavorite,
     color = color.toPlaylistColor(),
     videos = videos,
-    tracks = tracks
+    tracks = tracks,
+    // Sharing fields
+    shareCode = shareCode,
+    sharedAt = sharedAt,
+    isImported = isImported,
+    importedFrom = importedFrom,
+    importedAt = importedAt
 )
 
 fun Playlist.toEntity(): PlaylistEntity = PlaylistEntity(
@@ -34,7 +40,13 @@ fun Playlist.toEntity(): PlaylistEntity = PlaylistEntity(
     videoCount = videoCount,
     trackCount = trackCount,
     isFavorite = isFavorite,
-    color = color.hex
+    color = color.hex,
+    // Sharing fields
+    shareCode = shareCode,
+    sharedAt = sharedAt,
+    isImported = isImported,
+    importedFrom = importedFrom,
+    importedAt = importedAt
 )
 
 fun String.toPlaylistColor(): PlaylistColor = PlaylistColor.values().find { it.hex == this } ?: PlaylistColor.PINK

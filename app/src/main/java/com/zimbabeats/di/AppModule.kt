@@ -4,6 +4,7 @@ import android.app.Application
 import com.zimbabeats.admin.DeviceAdminManager
 import com.zimbabeats.bridge.ParentalControlBridge
 import com.zimbabeats.cloud.CloudPairingClient
+import com.zimbabeats.cloud.PlaylistSharingClient
 import com.zimbabeats.data.AppPreferences
 import com.zimbabeats.media.music.MusicPlaybackManager
 import org.koin.android.ext.koin.androidApplication
@@ -17,6 +18,14 @@ val appModule = module {
     // Connects child device to parent's ZimbaBeats Family app
     // Must be defined BEFORE MusicPlaybackManager since it depends on this
     single { CloudPairingClient(androidContext()) }
+
+    // Playlist Sharing Client - share playlists between kids via codes
+    single {
+        PlaylistSharingClient(
+            firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance(),
+            cloudPairingClient = get()
+        )
+    }
 
     // Music playback manager singleton for mini player support
     // Integrates with CloudPairingClient for parental content filtering

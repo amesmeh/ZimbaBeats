@@ -32,4 +32,16 @@ interface PlaylistRepository {
     suspend fun removeTrackFromPlaylist(playlistId: Long, trackId: String): Resource<Unit>
     suspend fun moveTrackInPlaylist(playlistId: Long, trackId: String, newPosition: Int): Resource<Unit>
     suspend fun isTrackInPlaylist(playlistId: Long, trackId: String): Boolean
+
+    // Playlist sharing
+    fun getSharedPlaylists(): Flow<List<Playlist>>
+    fun getImportedPlaylists(): Flow<List<Playlist>>
+    suspend fun updateShareCode(playlistId: Long, shareCode: String?, sharedAt: Long?): Resource<Unit>
+    suspend fun createImportedPlaylist(
+        name: String,
+        description: String?,
+        color: PlaylistColor,
+        importedFrom: String
+    ): Resource<Long>
+    suspend fun markAsImported(playlistId: Long, importedFrom: String): Resource<Unit>
 }

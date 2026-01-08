@@ -14,5 +14,11 @@ data class PlaylistEntity(
     val videoCount: Int = 0,
     val trackCount: Int = 0,                  // Music track count
     val isFavorite: Boolean = false,
-    val color: String = "#FF6B9D"             // Kid-friendly color
+    val color: String = "#FF6B9D",            // Kid-friendly color
+    // Sharing fields
+    val shareCode: String? = null,            // 6-char share code if shared
+    val sharedAt: Long? = null,               // When share code was generated
+    val isImported: Boolean = false,          // True if imported from another kid
+    val importedFrom: String? = null,         // Name of kid who shared it
+    val importedAt: Long? = null              // When it was imported
 )

@@ -32,7 +32,7 @@ import com.zimbabeats.core.data.local.entity.music.*
         FavoriteTrackEntity::class,
         MusicListeningHistoryEntity::class
     ],
-    version = 7,  // Bumped version for schema change
+    version = 8,  // Added playlist sharing fields
     exportSchema = false
 )
 abstract class ZimbaBeatsDatabase : RoomDatabase() {

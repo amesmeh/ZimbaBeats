@@ -41,4 +41,17 @@ interface PlaylistDao {
 
     @Query("SELECT COUNT(*) FROM playlists")
     fun getPlaylistCount(): Flow<Int>
+
+    // Sharing queries
+    @Query("UPDATE playlists SET shareCode = :shareCode, sharedAt = :sharedAt WHERE id = :playlistId")
+    suspend fun updateShareCode(playlistId: Long, shareCode: String?, sharedAt: Long?)
+
+    @Query("SELECT * FROM playlists WHERE shareCode IS NOT NULL ORDER BY sharedAt DESC")
+    fun getSharedPlaylists(): Flow<List<PlaylistEntity>>
+
+    @Query("SELECT * FROM playlists WHERE isImported = 1 ORDER BY importedAt DESC")
+    fun getImportedPlaylists(): Flow<List<PlaylistEntity>>
+
+    @Query("UPDATE playlists SET isImported = 1, importedFrom = :importedFrom, importedAt = :importedAt WHERE id = :playlistId")
+    suspend fun markAsImported(playlistId: Long, importedFrom: String, importedAt: Long = System.currentTimeMillis())
 }

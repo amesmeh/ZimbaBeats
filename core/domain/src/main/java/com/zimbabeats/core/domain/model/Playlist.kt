@@ -14,10 +14,19 @@ data class Playlist(
     val isFavorite: Boolean = false,
     val color: PlaylistColor = PlaylistColor.PINK,
     val videos: List<Video> = emptyList(),
-    val tracks: List<Track> = emptyList()    // Music tracks
+    val tracks: List<Track> = emptyList(),   // Music tracks
+    // Sharing fields
+    val shareCode: String? = null,           // 6-char share code if shared
+    val sharedAt: Long? = null,              // When share code was generated
+    val isImported: Boolean = false,         // True if imported from another kid
+    val importedFrom: String? = null,        // Name of kid who shared it
+    val importedAt: Long? = null             // When it was imported
 ) {
     /** Total number of items (videos + tracks) */
     val totalItemCount: Int get() = videoCount + trackCount
+
+    /** Whether this playlist has an active share code */
+    val isShared: Boolean get() = shareCode != null
 }
 
 enum class PlaylistColor(val hex: String) {
