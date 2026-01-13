@@ -3,6 +3,8 @@
 import androidx.room.Room
 import com.zimbabeats.core.data.local.database.ZimbaBeatsDatabase
 import com.zimbabeats.core.data.local.migrations.MIGRATION_7_8
+import com.zimbabeats.core.data.local.migrations.MIGRATION_8_9
+import com.zimbabeats.core.data.local.migrations.MIGRATION_9_10
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -14,8 +16,9 @@ val databaseModule = module {
             ZimbaBeatsDatabase::class.java,
             "marelikaybeats_database"
         )
-            .addMigrations(MIGRATION_7_8)
-            .fallbackToDestructiveMigration()  // Safe for test users - handles v8->v9 table renames
+            .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            // REMOVED: fallbackToDestructiveMigration() - This was wiping user data on updates!
+            // All migrations must be properly defined to preserve user data
             .build()
     }
 
