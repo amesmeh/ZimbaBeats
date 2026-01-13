@@ -88,19 +88,11 @@ fun MusicPlayerScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "NOW PLAYING",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = track?.albumName ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = "Now Playing",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -282,13 +274,10 @@ private fun PlayerContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
             .semantics { contentDescription = "Now playing ${track.title} by ${track.artistName}" },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Small top spacing
-        Spacer(modifier = Modifier.height(8.dp))
-
         // Album art or Lyrics view - takes all remaining space using weight
         Box(
             modifier = Modifier
@@ -315,7 +304,7 @@ private fun PlayerContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Track info - compact
         Row(
@@ -392,7 +381,7 @@ private fun PlayerContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
+                .padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -460,7 +449,7 @@ private fun PlayerContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp),
+                .padding(bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {

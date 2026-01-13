@@ -2,15 +2,17 @@
 
 import android.content.Context
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 import java.util.UUID
@@ -44,6 +46,9 @@ class CloudPairingClient(
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    // Coroutine scope for async operations (replaces deprecated Handler pattern)
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val _pairingStatus = MutableStateFlow(loadPairingStatus())
     val pairingStatus: StateFlow<PairingStatus> = _pairingStatus.asStateFlow()
@@ -259,9 +264,9 @@ class CloudPairingClient(
                 if (snapshot != null && !snapshot.exists()) {
                     // Device document was deleted by parent - we've been unlinked!
                     Log.w(TAG, "Device was removed by parent - unlinking locally")
-                    // Use Handler to defer unlink handling to avoid deadlock
+                    // Use coroutine to defer unlink handling to avoid deadlock
                     // (can't remove listener from within listener callback)
-                    Handler(Looper.getMainLooper()).post {
+                    mainScope.launch {
                         handleRemoteUnlink()
                     }
                 } else if (snapshot != null && snapshot.exists()) {
@@ -272,7 +277,7 @@ class CloudPairingClient(
                     if (currentChildId != null && newChildId != currentChildId) {
                         // Child ID changed - could be reassigned to different child or set to null
                         Log.w(TAG, "Child ID changed from $currentChildId to $newChildId - updating local state")
-                        Handler(Looper.getMainLooper()).post {
+                        mainScope.launch {
                             handleChildIdChange(status.parentUid, status.deviceId, snapshot.getString("childName") ?: "Child", newChildId)
                         }
                     }

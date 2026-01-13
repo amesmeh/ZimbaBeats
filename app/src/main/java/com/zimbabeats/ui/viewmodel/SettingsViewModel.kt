@@ -375,6 +375,11 @@ class SettingsViewModel(
 
     fun setAutoUpdateCheck(enabled: Boolean) {
         appPreferences.setAutoUpdateCheck(enabled)
+        // If enabling auto-update check, reset the cooldown so it triggers on next app launch
+        if (enabled) {
+            appPreferences.setLastUpdateCheck(0L)
+            android.util.Log.d("SettingsViewModel", "Auto-update check enabled - cooldown reset")
+        }
     }
 
     fun checkForUpdate() {

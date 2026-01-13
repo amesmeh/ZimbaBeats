@@ -591,6 +591,15 @@ fun SettingsScreen(
                         text = updateInfo.releaseName,
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    // Show APK size if available
+                    if (updateInfo.apkSize > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Download size: ${viewModel.formatFileSize(updateInfo.apkSize)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Release Notes:",
@@ -609,7 +618,7 @@ fun SettingsScreen(
                     viewModel.openUpdateDownloadPage()
                     showUpdateAvailableDialog = false
                 }) {
-                    Text("Download")
+                    Text("Download APK")
                 }
             },
             dismissButton = {

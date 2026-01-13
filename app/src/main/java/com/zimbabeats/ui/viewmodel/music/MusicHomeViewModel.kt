@@ -14,6 +14,7 @@ import com.zimbabeats.core.domain.model.music.Track
 import com.zimbabeats.core.domain.repository.MusicRepository
 import com.zimbabeats.core.domain.util.Resource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -255,17 +256,32 @@ class MusicHomeViewModel(
         }
     }
 
+    // Auto-refresh job for proper cancellation
+    private var autoRefreshJob: kotlinx.coroutines.Job? = null
+
     /**
      * Auto-refresh content every 1 minute
+     * Uses ensureActive() to properly stop when ViewModel is cleared
      */
     private fun startAutoRefresh() {
-        viewModelScope.launch {
-            while (true) {
-                kotlinx.coroutines.delay(60_000L) // 1 minute
-                Log.d(TAG, "Auto-refreshing music content...")
-                loadMusicHomeInternal()
+        autoRefreshJob = viewModelScope.launch {
+            try {
+                while (true) {
+                    kotlinx.coroutines.delay(60_000L) // 1 minute
+                    ensureActive()  // Throws CancellationException if job is cancelled
+                    Log.d(TAG, "Auto-refreshing music content...")
+                    loadMusicHomeInternal()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                Log.d(TAG, "Auto-refresh cancelled")
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        autoRefreshJob?.cancel()
+        Log.d(TAG, "MusicHomeViewModel cleared, auto-refresh stopped")
     }
 
     /**
@@ -443,10 +459,35 @@ class MusicHomeViewModel(
     fun refresh() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true)
-            loadMusicHomeInternal()
-            loadRecentlyPlayed()
-            loadMostPlayed()
-            _uiState.value = _uiState.value.copy(isRefreshing = false)
+
+            try {
+                // Load music home content
+                loadMusicHomeInternal()
+
+                // Refresh recently played - take first emission
+                musicRepository.getRecentlyPlayed(10).collect { tracks ->
+                    unfilteredRecentlyPlayed = tracks
+                    val filteredTracks = filterTracksWithBridge(tracks)
+                    Log.d(TAG, "Refreshed ${tracks.size} recently played, ${filteredTracks.size} after filtering")
+                    _uiState.value = _uiState.value.copy(recentlyPlayed = filteredTracks)
+                    return@collect // Exit after first emission
+                }
+
+                // Refresh most played - take first emission
+                musicRepository.getMostPlayed(10).collect { tracks ->
+                    unfilteredMostPlayed = tracks
+                    val filteredTracks = filterTracksWithBridge(tracks)
+                    Log.d(TAG, "Refreshed ${tracks.size} most played, ${filteredTracks.size} after filtering")
+                    _uiState.value = _uiState.value.copy(mostPlayed = filteredTracks)
+                    return@collect // Exit after first emission
+                }
+
+                Log.d(TAG, "Refresh completed successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during refresh: ${e.message}", e)
+            } finally {
+                _uiState.value = _uiState.value.copy(isRefreshing = false)
+            }
         }
     }
 

@@ -98,8 +98,14 @@ class ZimbaBeatsApplication : Application(), SingletonImageLoader.Factory {
             try {
                 val appPreferences: AppPreferences = get()
 
+                // Small delay to ensure DataStore has loaded preferences
+                kotlinx.coroutines.delay(500)
+
                 // Check if auto-update is enabled
-                if (!appPreferences.isAutoUpdateCheckEnabled()) {
+                val autoUpdateEnabled = appPreferences.isAutoUpdateCheckEnabled()
+                android.util.Log.d("ZimbaBeats", "Auto-update check setting: $autoUpdateEnabled")
+
+                if (!autoUpdateEnabled) {
                     android.util.Log.d("ZimbaBeats", "Auto-update check disabled by user")
                     return@launch
                 }
@@ -107,8 +113,11 @@ class ZimbaBeatsApplication : Application(), SingletonImageLoader.Factory {
                 // Check cooldown (24 hours)
                 val lastCheck = appPreferences.getLastUpdateCheck()
                 val now = System.currentTimeMillis()
-                if ((now - lastCheck) < updateCheckCooldown) {
-                    android.util.Log.d("ZimbaBeats", "Skipping update check - cooldown not expired")
+                val timeSinceLastCheck = now - lastCheck
+                android.util.Log.d("ZimbaBeats", "Last update check: $lastCheck, time since: ${timeSinceLastCheck / 1000}s, cooldown: ${updateCheckCooldown / 1000}s")
+
+                if (timeSinceLastCheck < updateCheckCooldown) {
+                    android.util.Log.d("ZimbaBeats", "Skipping update check - cooldown not expired (${(updateCheckCooldown - timeSinceLastCheck) / 3600000}h remaining)")
                     return@launch
                 }
 

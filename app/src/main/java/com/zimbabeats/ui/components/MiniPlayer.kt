@@ -209,8 +209,8 @@ fun MiniPlayer(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(72.dp)
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .height(64.dp)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -220,7 +220,7 @@ fun MiniPlayer(
                                     model = track.thumbnailUrl,
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .size(52.dp)
+                                        .size(48.dp)
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentScale = ContentScale.Crop
@@ -242,10 +242,10 @@ fun MiniPlayer(
                                 )
                             }
 
-                            // Track info with time and queue count
+                            // Track info - title and artist only
                             Column(
                                 modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 // Title
                                 Text(
@@ -264,28 +264,6 @@ fun MiniPlayer(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                // Time display and queue count
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // Time: 1:23 / 3:45
-                                    Text(
-                                        text = "${formatTime(musicPlaybackState.currentPosition)} / ${formatTime(musicPlaybackState.duration)}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (animatedDominantColor != Color.Transparent)
-                                            animatedDominantColor.copy(alpha = 0.9f)
-                                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
-                                    )
-                                    // Queue count: 3 of 15
-                                    if (musicPlaybackState.queue.isNotEmpty()) {
-                                        Text(
-                                            text = "${musicPlaybackState.currentIndex + 1} of ${musicPlaybackState.queue.size}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
                             }
 
                             // Playback controls with favorite

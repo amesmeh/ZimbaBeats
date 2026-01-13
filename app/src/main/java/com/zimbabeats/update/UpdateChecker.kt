@@ -63,11 +63,26 @@ class UpdateChecker(private val context: Context) {
                 Log.d(TAG, "Current: $currentVersion, Latest: $latestVersion")
 
                 if (isNewerVersion(currentVersion, latestVersion)) {
+                    // Find the APK asset for direct download
+                    // Look for ZimbaBeats.apk (main app)
+                    val apkAsset = release.assets.find { asset ->
+                        asset.name.equals("ZimbaBeats.apk", ignoreCase = true) ||
+                        asset.name.contains("ZimbaBeats", ignoreCase = true) && asset.name.endsWith(".apk", ignoreCase = true)
+                    }
+
+                    // Use direct APK URL if found, otherwise fall back to release page
+                    val downloadUrl = apkAsset?.browserDownloadUrl ?: release.htmlUrl
+                    val apkSize = apkAsset?.size ?: 0L
+
+                    Log.d(TAG, "APK asset found: ${apkAsset?.name}, URL: $downloadUrl, Size: $apkSize")
+
                     UpdateResult.UpdateAvailable(
                         version = latestVersion,
-                        url = release.htmlUrl,
+                        url = downloadUrl,
+                        releasePageUrl = release.htmlUrl,
                         notes = release.body ?: "No release notes available.",
-                        releaseName = release.name ?: "Version $latestVersion"
+                        releaseName = release.name ?: "Version $latestVersion",
+                        apkSize = apkSize
                     )
                 } else {
                     UpdateResult.NoUpdate
@@ -150,9 +165,11 @@ class UpdateChecker(private val context: Context) {
 sealed class UpdateResult {
     data class UpdateAvailable(
         val version: String,
-        val url: String,
+        val url: String,           // Direct APK download URL (preferred)
+        val releasePageUrl: String, // GitHub release page (fallback)
         val notes: String,
-        val releaseName: String
+        val releaseName: String,
+        val apkSize: Long = 0      // APK size in bytes
     ) : UpdateResult()
 
     object NoUpdate : UpdateResult()
@@ -178,5 +195,26 @@ data class GitHubRelease(
     val htmlUrl: String,
 
     @SerialName("published_at")
-    val publishedAt: String? = null
+    val publishedAt: String? = null,
+
+    @SerialName("assets")
+    val assets: List<GitHubAsset> = emptyList()
+)
+
+/**
+ * GitHub Release Asset model for APK downloads.
+ */
+@Serializable
+data class GitHubAsset(
+    @SerialName("name")
+    val name: String,
+
+    @SerialName("browser_download_url")
+    val browserDownloadUrl: String,
+
+    @SerialName("content_type")
+    val contentType: String? = null,
+
+    @SerialName("size")
+    val size: Long = 0
 )

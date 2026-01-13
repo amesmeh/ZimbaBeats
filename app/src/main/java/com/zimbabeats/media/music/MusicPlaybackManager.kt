@@ -53,11 +53,13 @@ class MusicPlaybackManager(
         private const val TAG = "MusicPlaybackManager"
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scopeJob = SupervisorJob()
+    private val scope = CoroutineScope(scopeJob + Dispatchers.Main)
     private val player = ZimbaBeatsPlayer(application)
     private var loadedTrackId: String? = null
     private var sleepTimerJob: Job? = null
     private var positionUpdateJob: Job? = null
+    private var trackCompletionJob: Job? = null
     private var playbackStartTime: Long = 0L
 
     private val _playbackState = MutableStateFlow(MusicPlaybackState())
@@ -94,7 +96,7 @@ class MusicPlaybackManager(
      * Listen for track completion and auto-advance to next song in queue
      */
     private fun setupTrackCompletionListener() {
-        scope.launch {
+        trackCompletionJob = scope.launch {
             var wasEnded = false
             player.playerState.collect { state ->
                 // Detect transition to ended state
@@ -385,8 +387,13 @@ class MusicPlaybackManager(
     fun getAudioSessionId(): Int = player.getAudioSessionId()
 
     fun release() {
+        // Cancel all jobs
         positionUpdateJob?.cancel()
         sleepTimerJob?.cancel()
+        trackCompletionJob?.cancel()
+        // Cancel the entire scope to prevent memory leaks
+        scopeJob.cancel()
         player.release()
+        Log.d(TAG, "MusicPlaybackManager released, all jobs cancelled")
     }
 }

@@ -83,6 +83,12 @@ class SearchViewModel(
 
         val filter = contentFilter
 
+        // Null safety: If filter is null, allow all videos (unrestricted mode)
+        if (filter == null) {
+            android.util.Log.w("SearchViewModel", "Content filter is null - allowing all ${videos.size} videos")
+            return videos
+        }
+
         // If filter settings haven't loaded from Firestore yet, don't block anything
         if (!filter.hasLoadedSettings()) {
             android.util.Log.w("SearchViewModel", "Filter settings not yet loaded - allowing all ${videos.size} videos")
@@ -303,7 +309,8 @@ class SearchViewModel(
             searchRepository.updateSuggestion(query)
 
             // Search YouTube - filtering is done after results are returned
-            when (val result = searchRepository.searchVideos(query, maxResults = 50)) {
+            // Using maxResults = 100 for better coverage, especially for channel/creator searches
+            when (val result = searchRepository.searchVideos(query, maxResults = 100)) {
                 is Resource.Success -> {
                     val searchResult = result.data
                     // First apply safety filtering via Bridge, then sort by relevance to the search query

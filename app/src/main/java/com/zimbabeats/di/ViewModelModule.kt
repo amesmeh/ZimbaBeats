@@ -47,9 +47,9 @@ val viewModelModule = module {
     // Playlist Sharing (share/import playlists between kids)
     viewModel { PlaylistSharingViewModel(get(), get(), get(), get()) }
 
-    // Video Player screen (uses ParentalControlBridge for permissions)
+    // Video Player screen (uses CloudPairingClient + VideoContentFilter for dual-layer filtering)
     viewModel { (videoId: String) ->
-        VideoPlayerViewModel(androidApplication(), get(), get(), get(), get(), get(), get(), get(), get(), get())
+        VideoPlayerViewModel(androidApplication(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get())
     }
 
     // Downloads screen

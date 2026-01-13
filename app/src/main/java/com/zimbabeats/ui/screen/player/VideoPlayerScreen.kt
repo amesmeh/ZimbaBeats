@@ -127,22 +127,37 @@ fun VideoPlayerScreen(
         }
     }
 
+    // Keep screen on during video playback (portrait and landscape)
+    DisposableEffect(Unit) {
+        val activity = context as? Activity
+        if (activity == null) {
+            return@DisposableEffect onDispose { }
+        }
+        val window = activity.window
+
+        // Keep screen on while video player is active
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        onDispose {
+            // Clear screen-on flag when leaving video player
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     // Fullscreen immersive mode for landscape
     LaunchedEffect(isLandscape) {
         val activity = context as? Activity ?: return@LaunchedEffect
         val window = activity.window
 
         if (isLandscape) {
-            // Enter immersive mode
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            // Enter immersive mode (hide system bars)
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             insetsController.apply {
                 hide(WindowInsetsCompat.Type.systemBars())
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         } else {
-            // Exit immersive mode
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            // Exit immersive mode (show system bars)
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             insetsController.apply {
                 show(WindowInsetsCompat.Type.systemBars())
@@ -155,7 +170,6 @@ fun VideoPlayerScreen(
         onDispose {
             val activity = context as? Activity ?: return@onDispose
             val window = activity.window
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             insetsController.show(WindowInsetsCompat.Type.systemBars())
         }

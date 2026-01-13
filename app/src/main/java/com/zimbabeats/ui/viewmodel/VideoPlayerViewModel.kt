@@ -21,6 +21,10 @@ import com.zimbabeats.download.DownloadSizeInfo
 import com.zimbabeats.media.player.ZimbaBeatsPlayer
 import com.zimbabeats.cloud.CloudPairingClient
 import com.zimbabeats.cloud.PairingStatus
+import com.zimbabeats.core.domain.filter.VideoContentFilter
+import com.zimbabeats.core.domain.filter.AgeGroup
+import com.zimbabeats.core.domain.filter.FilterResult
+import com.zimbabeats.core.domain.model.AgeRating
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class QualityOption(
     val quality: String,
@@ -82,7 +87,8 @@ class VideoPlayerViewModel(
     private val downloadManager: com.zimbabeats.download.DownloadManager,
     private val downloadRepository: DownloadRepository,
     private val cloudPairingClient: CloudPairingClient,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val videoContentFilter: VideoContentFilter
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -321,53 +327,109 @@ class VideoPlayerViewModel(
     }
 
     /**
-     * Load related videos from the same channel by searching YouTube
+     * Load related videos from the same channel using HYBRID APPROACH:
+     * 1. Try database first (fast, cached videos from this channel)
+     * 2. If < 5 videos, supplement with YouTube API search
+     * 3. Apply dual-layer filtering (CloudContentFilter + VideoContentFilter)
+     *
+     * This ensures:
+     * - Fast loading from database when available
+     * - Complete results with YouTube API fallback
+     * - Age-appropriate content filtering
      */
     private fun loadRelatedVideos(channelId: String, currentVideoId: String) {
-        val channelName = _uiState.value.video?.channelName ?: return
-
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingRelated = true)
 
             try {
-                // Search YouTube for videos from this channel
-                val searchResults = youTubeService.searchVideos("$channelName", maxResults = 50)
+                Log.d(TAG, "Loading related videos for channel: $channelId")
 
-                // Convert YouTubeVideo to Video domain model, filter current video, and limit to 10
-                val relatedVideos = searchResults
-                    .filter { it.id != currentVideoId }
-                    .filter { it.channelName.equals(channelName, ignoreCase = true) }
-                    .take(10)
-                    .map { ytVideo ->
-                        Video(
-                            id = ytVideo.id,
-                            title = ytVideo.title,
-                            description = ytVideo.description,
-                            thumbnailUrl = ytVideo.thumbnailUrl,
-                            channelName = ytVideo.channelName,
-                            channelId = ytVideo.channelId,
-                            duration = ytVideo.duration,
-                            viewCount = ytVideo.viewCount,
-                            publishedAt = ytVideo.publishedAt,
-                            isKidFriendly = ytVideo.isFamilySafe || ytVideo.isMadeForKids,
-                            category = null
-                        )
+                // STEP 1: Query database for videos from this channel
+                val dbVideos = videoRepository.getVideosByChannel(channelId)
+                    .first() // Get single snapshot, not continuous flow
+                    .filter { it.id != currentVideoId } // Exclude current video
+
+                Log.d(TAG, "Found ${dbVideos.size} videos in database for channel: $channelId")
+
+                // STEP 2: Determine if we need YouTube API fallback
+                val needsYouTubeFallback = dbVideos.size < 5
+
+                val allVideos = if (needsYouTubeFallback) {
+                    Log.d(TAG, "Database has < 5 videos, fetching from YouTube API as supplement")
+
+                    // Get channel name for search (fallback to empty if not available)
+                    val channelName = _uiState.value.video?.channelName ?: ""
+
+                    if (channelName.isEmpty()) {
+                        Log.w(TAG, "Channel name not available, using database results only")
+                        dbVideos
+                    } else {
+                        // Fetch from YouTube API
+                        // Note: We use channelName search because Innertube doesn't have a channel-specific
+                        // search endpoint, but we filter results strictly by channelId to ensure accuracy
+                        val youtubeResults = youTubeService.searchVideos(channelName, maxResults = 100)
+
+                        Log.d(TAG, "YouTube API returned ${youtubeResults.size} results for '$channelName'")
+
+                        // Convert YouTubeVideo to Video domain model
+                        val youtubeVideos = youtubeResults
+                            .filter { it.id != currentVideoId } // Exclude current video
+                            .filter { it.channelId == channelId } // STRICT: Only exact channelId match
+                            .map { ytVideo ->
+                                Video(
+                                    id = ytVideo.id,
+                                    title = ytVideo.title,
+                                    description = ytVideo.description,
+                                    thumbnailUrl = ytVideo.thumbnailUrl,
+                                    channelName = ytVideo.channelName,
+                                    channelId = ytVideo.channelId,
+                                    duration = ytVideo.duration,
+                                    viewCount = ytVideo.viewCount,
+                                    publishedAt = ytVideo.publishedAt,
+                                    isKidFriendly = ytVideo.isFamilySafe || ytVideo.isMadeForKids,
+                                    category = null
+                                )
+                            }
+
+                        Log.d(TAG, "Filtered to ${youtubeVideos.size} videos from exact channel")
+
+                        // Combine database + YouTube results, remove duplicates
+                        val combined = (dbVideos + youtubeVideos).distinctBy { it.id }
+                        Log.d(TAG, "Combined results: ${combined.size} unique videos")
+                        combined
                     }
+                } else {
+                    // Database has enough videos, use them
+                    Log.d(TAG, "Database has sufficient videos, using database results only")
+                    dbVideos
+                }
 
-                Log.d(TAG, "Loaded ${relatedVideos.size} related videos from channel '$channelName'")
+                // STEP 3: Apply dual-layer filtering
+                val filteredVideos = filterRelatedVideos(allVideos)
+
+                // STEP 4: Take top 10 for display
+                val finalVideos = filteredVideos.take(10)
+
+                Log.d(TAG, "Loaded ${finalVideos.size} related videos from channel (${filteredVideos.size} after filtering)")
 
                 _uiState.value = _uiState.value.copy(
-                    relatedVideos = relatedVideos,
+                    relatedVideos = finalVideos,
                     isLoadingRelated = false
                 )
 
-                // Cache the videos for future use
-                if (relatedVideos.isNotEmpty()) {
-                    videoRepository.saveVideos(relatedVideos)
+                // STEP 5: Cache the filtered YouTube results for future use
+                // Only cache videos that passed filtering to keep database clean
+                if (needsYouTubeFallback && filteredVideos.isNotEmpty()) {
+                    videoRepository.saveVideos(filteredVideos)
+                    Log.d(TAG, "Cached ${filteredVideos.size} filtered videos to database")
                 }
+
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load related videos for channel '$channelName'", e)
-                _uiState.value = _uiState.value.copy(isLoadingRelated = false)
+                Log.e(TAG, "Failed to load related videos for channel '$channelId'", e)
+                _uiState.value = _uiState.value.copy(
+                    relatedVideos = emptyList(),
+                    isLoadingRelated = false
+                )
             }
         }
     }
@@ -668,6 +730,107 @@ class VideoPlayerViewModel(
         val video = _uiState.value.video ?: return ""
         // Use clean YouTube URL without tracking parameters
         return "https://youtu.be/${video.id}"
+    }
+
+    /**
+     * Get the cloud content filter (Firebase-based)
+     */
+    private val contentFilter get() = cloudPairingClient.contentFilter
+
+    /**
+     * Get current age rating from cloud settings
+     * Returns AgeRating.ALL if not linked to family or settings unavailable
+     */
+    private fun getCurrentAgeRating(): AgeRating {
+        val cloudSettings = cloudPairingClient.cloudSettings.value
+        val ageRatingString = cloudSettings?.ageRating
+        return parseAgeRating(ageRatingString)
+    }
+
+    /**
+     * Convert cloud age rating string to AgeRating enum
+     */
+    private fun parseAgeRating(ageRatingString: String?): AgeRating {
+        return when (ageRatingString) {
+            "FIVE_PLUS" -> AgeRating.FIVE_PLUS
+            "EIGHT_PLUS" -> AgeRating.EIGHT_PLUS
+            "TEN_PLUS" -> AgeRating.TEN_PLUS
+            "TWELVE_PLUS" -> AgeRating.TWELVE_PLUS
+            "THIRTEEN_PLUS" -> AgeRating.THIRTEEN_PLUS
+            "FOURTEEN_PLUS" -> AgeRating.FOURTEEN_PLUS
+            "SIXTEEN_PLUS" -> AgeRating.SIXTEEN_PLUS
+            else -> AgeRating.ALL
+        }
+    }
+
+    /**
+     * Convert AgeRating to AgeGroup for local VideoContentFilter
+     */
+    private fun ageRatingToAgeGroup(ageRating: AgeRating): AgeGroup {
+        return when (ageRating) {
+            AgeRating.ALL -> AgeGroup.UNDER_16
+            AgeRating.FIVE_PLUS -> AgeGroup.UNDER_5
+            AgeRating.EIGHT_PLUS -> AgeGroup.UNDER_8
+            AgeRating.TEN_PLUS -> AgeGroup.UNDER_10
+            AgeRating.TWELVE_PLUS -> AgeGroup.UNDER_12
+            AgeRating.THIRTEEN_PLUS -> AgeGroup.UNDER_13
+            AgeRating.FOURTEEN_PLUS -> AgeGroup.UNDER_14
+            AgeRating.SIXTEEN_PLUS -> AgeGroup.UNDER_16
+        }
+    }
+
+    /**
+     * Apply dual-layer filtering to related videos
+     * Same pattern as HomeViewModel lines 896-944
+     */
+    private suspend fun filterRelatedVideos(videos: List<Video>): List<Video> = withContext(Dispatchers.Default) {
+        // If not linked to family, allow all videos (unrestricted mode)
+        val filter = contentFilter
+        if (filter == null) {
+            Log.d(TAG, "Not linked to family - unrestricted mode, allowing all ${videos.size} videos")
+            return@withContext videos
+        }
+
+        val currentAgeLevel = getCurrentAgeRating()
+        val ageGroup = ageRatingToAgeGroup(currentAgeLevel)
+        val useStrictLocalFilter = currentAgeLevel in listOf(
+            AgeRating.FIVE_PLUS, AgeRating.EIGHT_PLUS, AgeRating.TEN_PLUS
+        )
+
+        Log.d(TAG, "Filtering ${videos.size} related videos - Age: ${currentAgeLevel.displayName}, Strict local filter: $useStrictLocalFilter")
+
+        val filteredVideos = videos.filter { video ->
+            // LAYER 1: Cloud Content Filter (Firebase-based)
+            val durationSeconds = if (video.duration > 100000) video.duration / 1000 else video.duration
+            val blockResult = filter.shouldBlockContent(
+                videoId = video.id,
+                title = video.title,
+                channelId = video.channelId,
+                channelName = video.channelName,
+                description = video.description,
+                durationSeconds = durationSeconds,
+                isLiveStream = false,
+                category = video.category?.name
+            )
+            if (blockResult.isBlocked) {
+                Log.d(TAG, "CLOUD BLOCKED related video: '${video.title}' - ${blockResult.message}")
+                return@filter false
+            }
+
+            // LAYER 2: Local VideoContentFilter with strictMode (for young kids)
+            if (useStrictLocalFilter) {
+                val localResult = videoContentFilter.filterVideo(video, ageGroup)
+                if (!localResult.allowed) {
+                    Log.d(TAG, "LOCAL BLOCKED related video: '${video.title}' - ${localResult.reason} (score: ${localResult.score})")
+                    return@filter false
+                }
+            }
+
+            true
+        }
+
+        Log.d(TAG, "Filtered related videos: ${filteredVideos.size}/${videos.size} passed (${videos.size - filteredVideos.size} blocked)")
+        filteredVideos
     }
 
     /**
