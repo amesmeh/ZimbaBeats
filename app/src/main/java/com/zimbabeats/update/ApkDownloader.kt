@@ -1,180 +1,132 @@
 package com.zimbabeats.update
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.util.Log
 import androidx.core.content.FileProvider
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOn
 import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
- * In-app APK downloader that bypasses browser restrictions.
- * Uses Android's DownloadManager for reliable background downloads.
+ * In-app APK downloader that uses private cache directory.
+ * No storage permissions required - works on all Android versions.
  */
 class ApkDownloader(private val context: Context) {
 
     companion object {
         private const val TAG = "ApkDownloader"
-        private const val APK_FILE_NAME = "ZimbaBeats-update.apk"
         private const val MIME_TYPE_APK = "application/vnd.android.package-archive"
+        private const val BUFFER_SIZE = 8192
+        private const val CONNECT_TIMEOUT = 15000
+        private const val READ_TIMEOUT = 30000
     }
 
-    private val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-    private var currentDownloadId: Long = -1
+    // Use app's private cache directory - no permissions needed
+    private val apkCacheDir: File
+        get() = File(context.cacheDir, "apk_updates").also { it.mkdirs() }
+
+    private var currentDownloadFile: File? = null
 
     /**
-     * Download APK from URL and return progress updates
+     * Download APK from URL and return progress updates.
+     * Downloads to app's private cache directory - no permissions required.
      */
-    fun downloadApk(url: String, version: String): Flow<DownloadState> = callbackFlow {
+    fun downloadApk(url: String, version: String): Flow<DownloadState> = flow {
         try {
-            // Delete old APK if exists
+            // Delete old APKs first
             deleteOldApk()
 
             val fileName = "ZimbaBeats-$version.apk"
-            val request = DownloadManager.Request(Uri.parse(url)).apply {
-                setTitle("ZimbaBeats Update")
-                setDescription("Downloading version $version")
-                setMimeType(MIME_TYPE_APK)
-                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            val outputFile = File(apkCacheDir, fileName)
+            currentDownloadFile = outputFile
 
-                // Allow download over mobile and wifi
-                setAllowedNetworkTypes(
-                    DownloadManager.Request.NETWORK_WIFI or
-                    DownloadManager.Request.NETWORK_MOBILE
-                )
+            Log.d(TAG, "Starting download to: ${outputFile.absolutePath}")
+            emit(DownloadState.Downloading(0))
 
-                // Required for Android 9+
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    setRequiresCharging(false)
-                    setRequiresDeviceIdle(false)
-                }
+            val connection = URL(url).openConnection() as HttpURLConnection
+            connection.connectTimeout = CONNECT_TIMEOUT
+            connection.readTimeout = READ_TIMEOUT
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Accept", MIME_TYPE_APK)
+
+            // Follow redirects (GitHub releases use redirects)
+            connection.instanceFollowRedirects = true
+
+            connection.connect()
+
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                emit(DownloadState.Failed("Server returned HTTP $responseCode"))
+                return@flow
             }
 
-            currentDownloadId = downloadManager.enqueue(request)
-            Log.d(TAG, "Download started with ID: $currentDownloadId")
+            val fileLength = connection.contentLength.toLong()
+            Log.d(TAG, "File size: $fileLength bytes")
 
-            trySend(DownloadState.Downloading(0))
+            connection.inputStream.use { input ->
+                FileOutputStream(outputFile).use { output ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var bytesDownloaded = 0L
+                    var bytesRead: Int
+                    var lastProgress = 0
 
-            // Register receiver for download completion
-            val receiver = object : BroadcastReceiver() {
-                override fun onReceive(ctx: Context?, intent: Intent?) {
-                    val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                    if (id == currentDownloadId) {
-                        val query = DownloadManager.Query().setFilterById(currentDownloadId)
-                        val cursor = downloadManager.query(query)
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        bytesDownloaded += bytesRead
 
-                        if (cursor.moveToFirst()) {
-                            val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                            val status = cursor.getInt(statusIndex)
-
-                            when (status) {
-                                DownloadManager.STATUS_SUCCESSFUL -> {
-                                    val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                                    val localUri = cursor.getString(uriIndex)
-                                    Log.d(TAG, "Download complete: $localUri")
-                                    trySend(DownloadState.Completed(localUri))
-                                }
-                                DownloadManager.STATUS_FAILED -> {
-                                    val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
-                                    val reason = cursor.getInt(reasonIndex)
-                                    Log.e(TAG, "Download failed with reason: $reason")
-                                    trySend(DownloadState.Failed("Download failed (error: $reason)"))
-                                }
-                            }
+                        // Calculate and emit progress
+                        val progress = if (fileLength > 0) {
+                            ((bytesDownloaded * 100) / fileLength).toInt()
+                        } else {
+                            // If content length unknown, show indeterminate-ish progress
+                            ((bytesDownloaded / 1024) % 100).toInt()
                         }
-                        cursor.close()
+
+                        // Only emit when progress changes to avoid flooding
+                        if (progress != lastProgress) {
+                            emit(DownloadState.Downloading(progress))
+                            lastProgress = progress
+                        }
                     }
                 }
             }
 
-            val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            connection.disconnect()
+
+            // Verify file was downloaded
+            if (outputFile.exists() && outputFile.length() > 0) {
+                Log.d(TAG, "Download complete: ${outputFile.absolutePath} (${outputFile.length()} bytes)")
+                emit(DownloadState.Downloading(100))
+                emit(DownloadState.Completed(outputFile.absolutePath))
             } else {
-                context.registerReceiver(receiver, filter)
+                emit(DownloadState.Failed("Download failed - file is empty"))
             }
 
-            // Poll for progress updates
-            var downloadComplete = false
-            while (!downloadComplete) {
-                val query = DownloadManager.Query().setFilterById(currentDownloadId)
-                val cursor = downloadManager.query(query)
-
-                if (cursor.moveToFirst()) {
-                    val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                    val status = cursor.getInt(statusIndex)
-
-                    when (status) {
-                        DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PENDING -> {
-                            val bytesDownloadedIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-                            val bytesTotalIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
-
-                            val bytesDownloaded = cursor.getLong(bytesDownloadedIndex)
-                            val bytesTotal = cursor.getLong(bytesTotalIndex)
-
-                            val progress = if (bytesTotal > 0) {
-                                ((bytesDownloaded * 100) / bytesTotal).toInt()
-                            } else {
-                                0
-                            }
-
-                            trySend(DownloadState.Downloading(progress))
-                        }
-                        DownloadManager.STATUS_SUCCESSFUL -> {
-                            val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                            val localUri = cursor.getString(uriIndex)
-                            Log.d(TAG, "Download complete (polling): $localUri")
-                            trySend(DownloadState.Downloading(100)) // Show 100% first
-                            trySend(DownloadState.Completed(localUri ?: ""))
-                            downloadComplete = true
-                        }
-                        DownloadManager.STATUS_FAILED -> {
-                            val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
-                            val reason = cursor.getInt(reasonIndex)
-                            Log.e(TAG, "Download failed (polling) with reason: $reason")
-                            trySend(DownloadState.Failed("Download failed (error: $reason)"))
-                            downloadComplete = true
-                        }
-                    }
-                }
-                cursor.close()
-
-                if (!downloadComplete) {
-                    delay(500) // Poll every 500ms
-                }
-            }
-
-            awaitClose {
-                try {
-                    context.unregisterReceiver(receiver)
-                } catch (e: Exception) {
-                    // Receiver might already be unregistered
-                }
-            }
         } catch (e: Exception) {
             Log.e(TAG, "Download error", e)
-            trySend(DownloadState.Failed(e.message ?: "Unknown error"))
-            close()
+            emit(DownloadState.Failed(e.message ?: "Unknown error"))
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     /**
-     * Install APK from local URI
+     * Install APK from the cached file
      */
-    fun installApk(localUri: String) {
+    fun installApk(filePath: String) {
         try {
-            val file = File(Uri.parse(localUri).path ?: return)
+            val file = File(filePath)
+
+            if (!file.exists()) {
+                Log.e(TAG, "APK file not found: $filePath")
+                return
+            }
 
             val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 FileProvider.getUriForFile(
@@ -200,61 +152,39 @@ class ApkDownloader(private val context: Context) {
     }
 
     /**
-     * Install APK from Downloads folder by version
+     * Install APK by version (looks in cache directory)
      */
     fun installApkFromDownloads(version: String) {
-        try {
-            val fileName = "ZimbaBeats-$version.apk"
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(downloadsDir, fileName)
+        val fileName = "ZimbaBeats-$version.apk"
+        val file = File(apkCacheDir, fileName)
 
-            if (!file.exists()) {
-                Log.e(TAG, "APK file not found: ${file.absolutePath}")
-                return
-            }
-
-            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    file
-                )
-            } else {
-                Uri.fromFile(file)
-            }
-
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, MIME_TYPE_APK)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-
-            context.startActivity(intent)
-            Log.d(TAG, "Install intent started for: $uri")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to install APK from downloads", e)
+        if (file.exists()) {
+            installApk(file.absolutePath)
+        } else {
+            Log.e(TAG, "APK file not found: ${file.absolutePath}")
         }
     }
 
     /**
-     * Cancel current download
+     * Cancel current download (best effort - closes connection on next read)
      */
     fun cancelDownload() {
-        if (currentDownloadId != -1L) {
-            downloadManager.remove(currentDownloadId)
-            currentDownloadId = -1
-            Log.d(TAG, "Download cancelled")
+        currentDownloadFile?.let { file ->
+            if (file.exists()) {
+                file.delete()
+                Log.d(TAG, "Cancelled download, deleted partial file")
+            }
         }
+        currentDownloadFile = null
     }
 
     /**
-     * Delete old APK files
+     * Delete old APK files from cache
      */
     private fun deleteOldApk() {
         try {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            downloadsDir.listFiles()?.filter {
-                it.name.startsWith("ZimbaBeats") && it.name.endsWith(".apk")
+            apkCacheDir.listFiles()?.filter {
+                it.name.endsWith(".apk")
             }?.forEach {
                 it.delete()
                 Log.d(TAG, "Deleted old APK: ${it.name}")
@@ -263,6 +193,11 @@ class ApkDownloader(private val context: Context) {
             Log.e(TAG, "Failed to delete old APK", e)
         }
     }
+
+    /**
+     * Get the cache directory path (for FileProvider configuration)
+     */
+    fun getCacheDir(): File = apkCacheDir
 }
 
 /**
